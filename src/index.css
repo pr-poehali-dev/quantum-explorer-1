@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -15,24 +15,24 @@
     --popover: 0 0% 3%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 147 87% 52%;
-    --primary-foreground: 0 0% 3%;
+    --primary: 340 82% 62%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 12%;
+    --secondary: 30 15% 12%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 0 0% 9%;
-    --muted-foreground: 0 0% 62%;
+    --muted: 20 5% 9%;
+    --muted-foreground: 30 10% 62%;
 
-    --accent: 147 87% 52%;
-    --accent-foreground: 0 0% 3%;
+    --accent: 340 82% 62%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 0 0% 18%;
     --input: 0 0% 12%;
-    --ring: 147 87% 52%;
+    --ring: 340 82% 62%;
 
     --radius: 0.625rem;
 
@@ -85,7 +85,8 @@ div[style*="spline"] > a,
 canvas + a[target="_blank"],
 .spline-watermark,
 div[class*="spline"] > a[href*="spline"],
-a[href="https://spline.design"] {
+a[href="https://spline.design"]
+{
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;

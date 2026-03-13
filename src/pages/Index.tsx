@@ -3,8 +3,28 @@ import Header from "@/components/Header"
 import RotatingTextAccent from "@/components/RotatingTextAccent"
 import Footer from "@/components/Footer"
 import HeroTextOverlay from "@/components/HeroTextOverlay"
+import Icon from "@/components/ui/icon"
 
-const CDN_BASE = "https://cdn.poehali.dev/templates/meet-jack"
+const popularSweets = [
+  {
+    name: "Бельгийский шоколад",
+    desc: "Ручная работа, натуральное какао",
+    price: "890 ₽",
+    emoji: "🍫",
+  },
+  {
+    name: "Макаруны ассорти",
+    desc: "12 штук, 6 вкусов",
+    price: "1 290 ₽",
+    emoji: "🧁",
+  },
+  {
+    name: "Подарочный набор",
+    desc: "Конфеты, мармелад, пастила",
+    price: "2 490 ₽",
+    emoji: "🎁",
+  },
+]
 
 const Index = () => {
   return (
@@ -18,6 +38,7 @@ const Index = () => {
         </main>
 
         <section
+          id="catalog"
           className="relative rounded-4xl py-7 mx-4 md:mx-0 w-[calc(100%-2rem)] md:w-full bg-card border border-solid border-border pb-20"
           style={{
             backgroundImage: `
@@ -40,36 +61,32 @@ const Index = () => {
             +
           </div>
 
-          <div className="px-6 md:px-40">
-            <div className="flex items-center justify-center mb-3.5 md:gap-11">
-              <div className="flex flex-col items-center">
-                <img src={`${CDN_BASE}/jack-front.png`} alt="Макс спереди" className="w-48 h-48 md:w-56 md:h-56 object-contain" />
-              </div>
+          <div className="px-6 md:px-16">
+            <h2
+              className="text-foreground text-3xl md:text-4xl font-bold mb-2 text-center"
+              style={{ fontFamily: "var(--font-montserrat)" }}
+            >
+              Хиты продаж
+            </h2>
+            <p className="text-muted-foreground text-sm font-mono text-center mb-10">
+              Самые популярные сладости нашего магазина
+            </p>
 
-              <div className="flex flex-col items-center">
-                <img src={`${CDN_BASE}/jack-side.png`} alt="Макс сбоку" className="w-48 h-48 md:w-56 md:h-56 object-contain" />
-              </div>
-
-              <div className="flex flex-col items-center">
-                <img src={`${CDN_BASE}/jack-back.png`} alt="Макс сзади" className="w-48 h-48 md:w-56 md:h-56 object-contain" />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2 max-w-5xl">
-              <div className="flex items-center gap-4">
-                <span className="text-accent font-mono text-sm">Имя</span>
-                <span className="text-foreground font-mono text-sm">Макс</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-accent font-mono text-sm">Вид</span>
-                <span className="text-foreground font-mono text-sm">Инопланетянин с планеты Флэпджек</span>
-              </div>
-              <div className="flex items-start gap-4">
-                <span className="text-accent font-mono text-sm">Характер</span>
-                <span className="text-foreground font-mono text-sm">
-                  Любопытный, гибкий, немного расслабленный - но острый, когда дело касается баз данных и организации информации.
-                </span>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {popularSweets.map((item) => (
+                <div
+                  key={item.name}
+                  className="bg-background/50 border border-border rounded-2xl p-6 flex flex-col items-center text-center hover:border-primary/50 transition-all duration-300 hover:shadow-[0_0_30px_hsl(var(--primary)/0.1)]"
+                >
+                  <span className="text-6xl mb-4">{item.emoji}</span>
+                  <h3 className="text-foreground font-mono font-bold text-lg mb-1">{item.name}</h3>
+                  <p className="text-muted-foreground font-mono text-sm mb-4">{item.desc}</p>
+                  <span className="text-primary font-mono font-bold text-xl mb-4">{item.price}</span>
+                  <button className="bg-primary text-primary-foreground px-6 py-2 rounded-full font-mono text-sm font-semibold hover:scale-105 transition-all duration-300 flex items-center gap-2">
+                    В корзину <Icon name="ShoppingCart" size={16} />
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         </section>

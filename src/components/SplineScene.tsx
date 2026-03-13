@@ -22,8 +22,8 @@ export default function SplineScene() {
       {isLoading && (
         <div className="absolute inset-0 w-full h-full flex items-center justify-center">
           <div className="text-foreground text-center">
-            <div className="text-lg mb-2">Загрузка 3D сцены...</div>
-            <div className="text-sm opacity-70">Пожалуйста, подождите</div>
+            <div className="text-lg mb-2">Загрузка...</div>
+            <div className="text-sm opacity-70">Готовим что-то сладкое 🍬</div>
           </div>
         </div>
       )}
