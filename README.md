@@ -1,3 +1,7 @@
-# quantum-explorer-1
+# Макс — Персональный лендинг с 3D
 
-Initial repository setup for pr-poehali-dev/quantum-explorer-1
+![Preview](https://cdn.poehali.dev/templates/meet-jack/preview-ru.jpg)
+
+Креативный персональный лендинг с интерактивной 3D-сценой на Spline. Минималистичный дизайн с фокусом на личный бренд. Подойдёт для разработчиков, дизайнеров и креаторов, которые хотят выделиться.
+
+`"tags": ["portfolio", "dark", "3d", "hero"]`
