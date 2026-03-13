@@ -11,7 +11,7 @@ const popularSweets = [
     desc: "Ручная работа, натуральное какао",
     price: "890 ₽",
     emoji: "🍫",
-    buttonClass: "bg-[#6B8E23] hover:bg-[#7BA428]",
+    buttonClass: "bg-[#9B59B6] hover:bg-[#A96BC8]",
   },
   {
     name: "Макаруны ассорти",
@@ -83,7 +83,7 @@ const Index = () => {
                   <h3 className="text-foreground font-mono font-bold text-lg mb-1">{item.name}</h3>
                   <p className="text-muted-foreground font-mono text-sm mb-4">{item.desc}</p>
                   <span className="text-primary font-mono font-bold text-xl mb-4">{item.price}</span>
-                  <button className={`${item.buttonClass || "bg-primary"} text-primary-foreground px-6 py-2 rounded-full font-mono text-sm font-semibold hover:scale-105 transition-all duration-300 flex items-center gap-2`}>
+                  <button className="bg-[#9B59B6] hover:bg-[#A96BC8] text-primary-foreground px-6 py-2 rounded-full font-mono text-sm font-semibold hover:scale-105 transition-all duration-300 flex items-center gap-2">
                     В корзину <Icon name="ShoppingCart" size={16} />
                   </button>
                 </div>
