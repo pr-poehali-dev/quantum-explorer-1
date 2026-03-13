@@ -10,7 +10,7 @@ const popularSweets = [
     name: "Бельгийский шоколад",
     desc: "Ручная работа, натуральное какао",
     price: "890 ₽",
-    emoji: "🍫",
+    image: "https://cdn.poehali.dev/projects/68b98fe6-18ec-42a9-8d59-af1b4f9af3ca/files/38a3d27d-cd8b-456a-a147-e2182e1ac86f.jpg",
     buttonClass: "bg-[#9B59B6] hover:bg-[#A96BC8]",
   },
   {
@@ -97,7 +97,11 @@ const Index = () => {
                   key={item.name}
                   className="bg-background/50 border border-border rounded-2xl p-6 flex flex-col items-center text-center hover:border-primary/50 transition-all duration-300 hover:shadow-[0_0_30px_hsl(var(--primary)/0.1)]"
                 >
-                  <span className="text-6xl mb-4">{item.emoji}</span>
+                  {item.image ? (
+                    <img src={item.image} alt={item.name} className="w-20 h-20 object-cover rounded-xl mb-4" />
+                  ) : (
+                    <span className="text-6xl mb-4">{item.emoji}</span>
+                  )}
                   <h3 className="text-foreground font-mono font-bold text-lg mb-1">{item.name}</h3>
                   <p className="text-muted-foreground font-mono text-sm mb-4">{item.desc}</p>
                   <span className="text-primary font-mono font-bold text-xl mb-4">{item.price}</span>
