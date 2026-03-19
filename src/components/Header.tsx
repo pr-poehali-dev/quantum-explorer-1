@@ -10,7 +10,7 @@ export default function Header() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/0 backdrop-blur-sm">
-      <div className="flex items-center justify-between px-6 py-4 text-transparent">
+      <div className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3">
           <Link to="/" className="text-foreground text-xl font-bold" style={{ fontFamily: "var(--font-montserrat)" }}>
             🍬 SweetShop
