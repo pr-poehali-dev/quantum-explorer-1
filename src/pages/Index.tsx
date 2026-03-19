@@ -1,51 +1,46 @@
+import { useEffect, useState } from "react"
 import SplineScene from "@/components/SplineScene"
 import Header from "@/components/Header"
 import RotatingTextAccent from "@/components/RotatingTextAccent"
 import Footer from "@/components/Footer"
 import HeroTextOverlay from "@/components/HeroTextOverlay"
 import Icon from "@/components/ui/icon"
+import { shop } from "@/lib/api"
+import { useCart } from "@/context/CartContext"
+import { useAuth } from "@/context/AuthContext"
+import { useNavigate } from "react-router-dom"
+import { toast } from "sonner"
 
-const popularSweets = [
-  {
-    name: "Бельгийский шоколад",
-    desc: "Ручная работа, натуральное какао",
-    price: "890 ₽",
-    image: "https://cdn.poehali.dev/projects/68b98fe6-18ec-42a9-8d59-af1b4f9af3ca/files/38a3d27d-cd8b-456a-a147-e2182e1ac86f.jpg",
-    buttonClass: "bg-[#9B59B6] hover:bg-[#A96BC8]",
-  },
-  {
-    name: "Макаруны ассорти",
-    desc: "12 штук, 6 вкусов",
-    price: "1 290 ₽",
-    emoji: "🧁",
-  },
-  {
-    name: "Подарочный набор",
-    desc: "Конфеты, мармелад, пастила",
-    price: "2 490 ₽",
-    emoji: "🎁",
-  },
-  {
-    name: "Медовая пастила",
-    desc: "Яблочная, с облепихой и вишней",
-    price: "590 ₽",
-    emoji: "🍯",
-  },
-  {
-    name: "Трюфели ручной работы",
-    desc: "9 штук, тёмный и молочный шоколад",
-    price: "1 490 ₽",
-    emoji: "🍬",
-  },
-  {
-    name: "Фруктовый мармелад",
-    desc: "Без сахара, на натуральном соке",
-    price: "690 ₽",
-    emoji: "🍊",
-  },
-]
+interface Product {
+  id: number
+  name: string
+  description: string
+  price: number
+  emoji?: string
+  image_url?: string
+  button_class?: string
+}
 
 const Index = () => {
+  const [products, setProducts] = useState<Product[]>([])
+  const { addToCart } = useCart()
+  const { user } = useAuth()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    shop.getProducts().then(d => setProducts(d.products || [])).catch(() => {})
+  }, [])
+
+  const handleAddToCart = async (productId: number) => {
+    if (!user) { navigate("/login"); return; }
+    try {
+      await addToCart(productId)
+      toast.success("Добавлено в корзину!")
+    } catch {
+      toast.error("Не удалось добавить в корзину")
+    }
+  }
+
   return (
     <div className="w-full min-h-screen py-0 bg-background">
       <div className="max-w-[1200px] mx-auto">
@@ -67,18 +62,10 @@ const Index = () => {
             backgroundSize: "40px 40px",
           }}
         >
-          <div className="absolute top-8 left-8 text-foreground opacity-50 text-5xl font-extralight font-sans leading-[0rem]">
-            +
-          </div>
-          <div className="absolute top-8 right-8 text-foreground opacity-50 text-5xl font-sans leading-[0] font-extralight">
-            +
-          </div>
-          <div className="absolute bottom-8 left-8 text-foreground opacity-50 text-5xl font-sans font-extralight">
-            +
-          </div>
-          <div className="absolute bottom-8 right-8 text-foreground opacity-50 text-5xl font-sans font-extralight">
-            +
-          </div>
+          <div className="absolute top-8 left-8 text-foreground opacity-50 text-5xl font-extralight font-sans leading-[0rem]">+</div>
+          <div className="absolute top-8 right-8 text-foreground opacity-50 text-5xl font-sans leading-[0] font-extralight">+</div>
+          <div className="absolute bottom-8 left-8 text-foreground opacity-50 text-5xl font-sans font-extralight">+</div>
+          <div className="absolute bottom-8 right-8 text-foreground opacity-50 text-5xl font-sans font-extralight">+</div>
 
           <div className="px-6 md:px-16">
             <h2
@@ -92,20 +79,23 @@ const Index = () => {
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {popularSweets.map((item) => (
+              {products.map((item) => (
                 <div
-                  key={item.name}
+                  key={item.id}
                   className="bg-background/50 border border-border rounded-2xl p-6 flex flex-col items-center text-center hover:border-primary/50 transition-all duration-300 hover:shadow-[0_0_30px_hsl(var(--primary)/0.1)]"
                 >
-                  {item.image ? (
-                    <img src={item.image} alt={item.name} className="w-20 h-20 object-cover rounded-xl mb-4" />
+                  {item.image_url ? (
+                    <img src={item.image_url} alt={item.name} className="w-20 h-20 object-cover rounded-xl mb-4" />
                   ) : (
                     <span className="text-6xl mb-4">{item.emoji}</span>
                   )}
                   <h3 className="text-foreground font-mono font-bold text-lg mb-1">{item.name}</h3>
-                  <p className="text-muted-foreground font-mono text-sm mb-4">{item.desc}</p>
-                  <span className="text-primary font-mono font-bold text-xl mb-4">{item.price}</span>
-                  <button className="bg-[#9B59B6] hover:bg-[#A96BC8] text-primary-foreground px-6 py-2 rounded-full font-mono text-sm font-semibold hover:scale-105 transition-all duration-300 flex items-center gap-2">
+                  <p className="text-muted-foreground font-mono text-sm mb-4">{item.description}</p>
+                  <span className="text-primary font-mono font-bold text-xl mb-4">{item.price.toLocaleString()} ₽</span>
+                  <button
+                    onClick={() => handleAddToCart(item.id)}
+                    className="bg-[#9B59B6] hover:bg-[#A96BC8] text-white px-6 py-2 rounded-full font-mono text-sm font-semibold hover:scale-105 transition-all duration-300 flex items-center gap-2"
+                  >
                     В корзину <Icon name="ShoppingCart" size={16} />
                   </button>
                 </div>

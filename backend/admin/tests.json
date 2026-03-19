@@ -1,0 +1,11 @@
+{
+  "tests": [
+    {
+      "name": "Health check no auth",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 403,
+      "bodyMatcher": "partial"
+    }
+  ]
+}
