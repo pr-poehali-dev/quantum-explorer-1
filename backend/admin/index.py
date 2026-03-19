@@ -34,8 +34,9 @@ def handler(event: dict, context) -> dict:
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': ''}
 
-    path = event.get('path', '/')
     method = event.get('httpMethod', 'GET')
+    params = event.get('queryStringParameters') or {}
+    action = params.get('action', '')
     body = {}
     if event.get('body'):
         body = json.loads(event['body'])
@@ -46,7 +47,7 @@ def handler(event: dict, context) -> dict:
         return {'statusCode': 403, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Доступ запрещён'})}
 
     # --- PRODUCTS ---
-    if '/products' in path:
+    if action == 'products':
         conn = get_db()
         cur = conn.cursor()
 
@@ -83,7 +84,7 @@ def handler(event: dict, context) -> dict:
         conn.close()
 
     # --- ORDERS ---
-    if '/orders' in path:
+    if action == 'orders':
         conn = get_db()
         cur = conn.cursor()
 
@@ -110,7 +111,7 @@ def handler(event: dict, context) -> dict:
         conn.close()
 
     # --- USERS ---
-    if '/users' in path:
+    if action == 'users':
         conn = get_db()
         cur = conn.cursor()
 
@@ -132,7 +133,7 @@ def handler(event: dict, context) -> dict:
         conn.close()
 
     # --- STATS ---
-    if method == 'GET' and path.endswith('/stats'):
+    if method == 'GET' and action == 'stats':
         conn = get_db()
         cur = conn.cursor()
         cur.execute("SELECT COUNT(*) FROM orders")

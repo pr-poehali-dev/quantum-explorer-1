@@ -35,16 +35,17 @@ def handler(event: dict, context) -> dict:
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': ''}
 
-    path = event.get('path', '/')
     method = event.get('httpMethod', 'GET')
+    params = event.get('queryStringParameters') or {}
+    action = params.get('action', '')
     body = {}
     if event.get('body'):
         body = json.loads(event['body'])
 
     token = event.get('headers', {}).get('X-Auth-Token') or event.get('headers', {}).get('x-auth-token', '')
 
-    # GET /products
-    if method == 'GET' and path.endswith('/products'):
+    # GET ?action=products
+    if method == 'GET' and action == 'products':
         conn = get_db()
         cur = conn.cursor()
         cur.execute("SELECT id, name, description, price, emoji, image_url, button_class, in_stock FROM products WHERE in_stock = TRUE ORDER BY id")
@@ -53,8 +54,8 @@ def handler(event: dict, context) -> dict:
         products = [{'id': r[0], 'name': r[1], 'description': r[2], 'price': r[3], 'emoji': r[4], 'image_url': r[5], 'button_class': r[6], 'in_stock': r[7]} for r in rows]
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'products': products})}
 
-    # GET /cart
-    if method == 'GET' and path.endswith('/cart'):
+    # GET ?action=cart
+    if method == 'GET' and action == 'cart':
         user = verify_token(token)
         if not user:
             return {'statusCode': 401, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Не авторизован'})}
@@ -70,8 +71,8 @@ def handler(event: dict, context) -> dict:
         items = [{'cart_id': r[0], 'quantity': r[1], 'product_id': r[2], 'name': r[3], 'price': r[4], 'emoji': r[5], 'image_url': r[6]} for r in rows]
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'items': items})}
 
-    # POST /cart
-    if method == 'POST' and path.endswith('/cart'):
+    # POST ?action=cart
+    if method == 'POST' and action == 'cart':
         user = verify_token(token)
         if not user:
             return {'statusCode': 401, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Не авторизован'})}
@@ -91,8 +92,8 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'ok': True})}
 
-    # PUT /cart
-    if method == 'PUT' and path.endswith('/cart'):
+    # PUT ?action=cart
+    if method == 'PUT' and action == 'cart':
         user = verify_token(token)
         if not user:
             return {'statusCode': 401, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Не авторизован'})}
@@ -108,8 +109,8 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'ok': True})}
 
-    # POST /orders
-    if method == 'POST' and path.endswith('/orders'):
+    # POST ?action=orders
+    if method == 'POST' and action == 'orders':
         user = verify_token(token)
         if not user:
             return {'statusCode': 401, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Не авторизован'})}
@@ -140,8 +141,8 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'ok': True, 'order_id': order_id})}
 
-    # GET /orders
-    if method == 'GET' and path.endswith('/orders'):
+    # GET ?action=orders
+    if method == 'GET' and action == 'orders':
         user = verify_token(token)
         if not user:
             return {'statusCode': 401, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Не авторизован'})}

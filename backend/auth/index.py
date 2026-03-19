@@ -49,16 +49,17 @@ def handler(event: dict, context) -> dict:
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': ''}
 
-    path = event.get('path', '/')
     method = event.get('httpMethod', 'GET')
+    params = event.get('queryStringParameters') or {}
+    action = params.get('action', '')
     body = {}
     if event.get('body'):
         body = json.loads(event['body'])
 
-    token = event.get('headers', {}).get('X-Auth-Token') or event.get('headers', {}).get('x-auth-token')
+    token = event.get('headers', {}).get('X-Auth-Token') or event.get('headers', {}).get('x-auth-token', '')
 
-    # POST /register
-    if method == 'POST' and path.endswith('/register'):
+    # POST ?action=register
+    if method == 'POST' and action == 'register':
         email = body.get('email', '').strip().lower()
         password = body.get('password', '')
         name = body.get('name', '').strip()
@@ -80,8 +81,8 @@ def handler(event: dict, context) -> dict:
         token_val = generate_token(user_id)
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'token': token_val, 'user': {'id': user_id, 'email': email, 'name': name, 'role': 'user'}})}
 
-    # POST /login
-    if method == 'POST' and path.endswith('/login'):
+    # POST ?action=login
+    if method == 'POST' and action == 'login':
         email = body.get('email', '').strip().lower()
         password = body.get('password', '')
         conn = get_db()
@@ -94,15 +95,15 @@ def handler(event: dict, context) -> dict:
         token_val = generate_token(row[0])
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'token': token_val, 'user': {'id': row[0], 'email': row[1], 'name': row[3], 'role': row[4]}})}
 
-    # GET /me
-    if method == 'GET' and path.endswith('/me'):
+    # GET ?action=me
+    if method == 'GET' and action == 'me':
         user = verify_token(token or '')
         if not user:
             return {'statusCode': 401, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Не авторизован'})}
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'user': user})}
 
-    # PUT /profile
-    if method == 'PUT' and path.endswith('/profile'):
+    # PUT ?action=profile
+    if method == 'PUT' and action == 'profile':
         user = verify_token(token or '')
         if not user:
             return {'statusCode': 401, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Не авторизован'})}
@@ -116,8 +117,8 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'ok': True})}
 
-    # PUT /password
-    if method == 'PUT' and path.endswith('/password'):
+    # PUT ?action=password
+    if method == 'PUT' and action == 'password':
         user = verify_token(token or '')
         if not user:
             return {'statusCode': 401, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Не авторизован'})}
