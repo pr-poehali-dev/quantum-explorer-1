@@ -13,6 +13,9 @@ CORS_HEADERS = {
     'Access-Control-Max-Age': '86400',
 }
 
+BRUTE_FORCE_MAX_ATTEMPTS = 5
+BRUTE_FORCE_WINDOW_SEC = 15 * 60  # 15 минут
+
 def get_db():
     return psycopg2.connect(os.environ['DATABASE_URL'])
 
@@ -74,8 +77,31 @@ def verify_token(token: str):
     except Exception:
         return None
 
+def check_brute_force(cur, ip: str, email: str) -> bool:
+    """Возвращает True если лимит попыток превышен"""
+    cur.execute(
+        "SELECT COUNT(*) FROM login_attempts WHERE (ip = %s OR email = %s) AND attempted_at > NOW() - INTERVAL '%s seconds'",
+        (ip, email, BRUTE_FORCE_WINDOW_SEC)
+    )
+    count = cur.fetchone()[0]
+    return count >= BRUTE_FORCE_MAX_ATTEMPTS
+
+def record_failed_attempt(cur, ip: str, email: str):
+    """Записывает неудачную попытку входа"""
+    cur.execute(
+        "INSERT INTO login_attempts (ip, email) VALUES (%s, %s)",
+        (ip, email)
+    )
+
+def clear_attempts(cur, ip: str, email: str):
+    """Очищает попытки после успешного входа"""
+    cur.execute(
+        "DELETE FROM login_attempts WHERE ip = %s AND email = %s",
+        (ip, email)
+    )
+
 def handler(event: dict, context) -> dict:
-    """Авторизация: регистрация, вход, профиль, обновление данных"""
+    """Авторизация: регистрация, вход, профиль, обновление данных. Защита от брутфорса: блокировка на 15 мин после 5 неудачных попыток."""
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': ''}
 
@@ -90,6 +116,7 @@ def handler(event: dict, context) -> dict:
             return {'statusCode': 400, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Некорректный JSON'})}
 
     token = event.get('headers', {}).get('X-Auth-Token') or event.get('headers', {}).get('x-auth-token', '')
+    client_ip = (event.get('requestContext') or {}).get('identity', {}).get('sourceIp', 'unknown')
 
     # POST ?action=register
     if method == 'POST' and action == 'register':
@@ -118,13 +145,26 @@ def handler(event: dict, context) -> dict:
     if method == 'POST' and action == 'login':
         email = body.get('email', '').strip().lower()
         password = body.get('password', '')
+
         conn = get_db()
         cur = conn.cursor()
+
+        if check_brute_force(cur, client_ip, email):
+            conn.close()
+            return {'statusCode': 429, 'headers': CORS_HEADERS, 'body': json.dumps({
+                'error': 'Слишком много попыток входа. Попробуйте через 15 минут.'
+            })}
+
         cur.execute("SELECT id, email, password_hash, name, role FROM users WHERE email = %s", (email,))
         row = cur.fetchone()
+
         if not row or not verify_password(password, row[2]):
+            record_failed_attempt(cur, client_ip, email)
+            conn.commit()
             conn.close()
             return {'statusCode': 401, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Неверный email или пароль'})}
+
+        clear_attempts(cur, client_ip, email)
         token_val = generate_token(row[0], conn)
         conn.commit()
         conn.close()
