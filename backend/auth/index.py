@@ -1,9 +1,9 @@
 import json
 import os
-import hashlib
 import hmac
 import secrets
 import time
+import bcrypt
 import psycopg2
 
 CORS_HEADERS = {
@@ -17,29 +17,59 @@ def get_db():
     return psycopg2.connect(os.environ['DATABASE_URL'])
 
 def hash_password(password: str) -> str:
-    salt = os.environ.get('SECRET_KEY', 'default_salt_change_me')
-    return hashlib.sha256((salt + password).encode()).hexdigest()
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 def verify_password(password: str, hashed: str) -> bool:
-    return hmac.compare_digest(hash_password(password), hashed)
+    try:
+        return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+    except Exception:
+        return False
 
-def generate_token(user_id: int) -> str:
-    salt = os.environ.get('SECRET_KEY', 'default_salt_change_me')
-    payload = f"{user_id}:{int(time.time())}:{secrets.token_hex(16)}"
-    token = hashlib.sha256((salt + payload).encode()).hexdigest()
-    return f"{user_id}:{token}"
+def generate_token(user_id: int, conn) -> str:
+    """Генерирует токен и сохраняет его хеш в БД"""
+    nonce = secrets.token_hex(32)
+    token_sig = f"{user_id}:{int(time.time())}:{nonce}"
+    token = f"{user_id}:{token_sig}"
+    token_hash = hmac.new(
+        os.environ['SECRET_KEY'].encode('utf-8'),
+        token_sig.encode('utf-8'),
+        'sha256'
+    ).hexdigest()
+    cur = conn.cursor()
+    cur.execute("UPDATE users SET token_hash = %s WHERE id = %s", (token_hash, user_id))
+    return token
 
 def verify_token(token: str):
+    """Проверяет токен: извлекает user_id и сверяет подпись с БД"""
+    if not token:
+        return None
     try:
-        user_id_str, _ = token.split(':', 1)
+        parts = token.split(':', 1)
+        if len(parts) != 2:
+            return None
+        user_id_str, token_sig = parts
         user_id = int(user_id_str)
+
+        expected_hash = hmac.new(
+            os.environ['SECRET_KEY'].encode('utf-8'),
+            token_sig.encode('utf-8'),
+            'sha256'
+        ).hexdigest()
+
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("SELECT id, email, name, phone, address, role FROM users WHERE id = %s", (user_id,))
+        cur.execute(
+            "SELECT id, email, name, phone, address, role, token_hash FROM users WHERE id = %s",
+            (user_id,)
+        )
         row = cur.fetchone()
         conn.close()
-        if not row:
+
+        if not row or not row[6]:
             return None
+        if not hmac.compare_digest(expected_hash, row[6]):
+            return None
+
         return {'id': row[0], 'email': row[1], 'name': row[2], 'phone': row[3], 'address': row[4], 'role': row[5]}
     except Exception:
         return None
@@ -54,7 +84,10 @@ def handler(event: dict, context) -> dict:
     action = params.get('action', '')
     body = {}
     if event.get('body'):
-        body = json.loads(event['body'])
+        try:
+            body = json.loads(event['body'])
+        except json.JSONDecodeError:
+            return {'statusCode': 400, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Некорректный JSON'})}
 
     token = event.get('headers', {}).get('X-Auth-Token') or event.get('headers', {}).get('x-auth-token', '')
 
@@ -76,9 +109,9 @@ def handler(event: dict, context) -> dict:
         pwd_hash = hash_password(password)
         cur.execute("INSERT INTO users (email, password_hash, name) VALUES (%s, %s, %s) RETURNING id", (email, pwd_hash, name))
         user_id = cur.fetchone()[0]
+        token_val = generate_token(user_id, conn)
         conn.commit()
         conn.close()
-        token_val = generate_token(user_id)
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'token': token_val, 'user': {'id': user_id, 'email': email, 'name': name, 'role': 'user'}})}
 
     # POST ?action=login
@@ -89,10 +122,12 @@ def handler(event: dict, context) -> dict:
         cur = conn.cursor()
         cur.execute("SELECT id, email, password_hash, name, role FROM users WHERE email = %s", (email,))
         row = cur.fetchone()
-        conn.close()
         if not row or not verify_password(password, row[2]):
+            conn.close()
             return {'statusCode': 401, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Неверный email или пароль'})}
-        token_val = generate_token(row[0])
+        token_val = generate_token(row[0], conn)
+        conn.commit()
+        conn.close()
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'token': token_val, 'user': {'id': row[0], 'email': row[1], 'name': row[3], 'role': row[4]}})}
 
     # GET ?action=me

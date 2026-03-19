@@ -1,0 +1,1 @@
+ALTER TABLE t_p56991462_quantum_explorer_1.users ADD COLUMN IF NOT EXISTS token_hash TEXT;

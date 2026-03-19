@@ -1,10 +1,47 @@
 {
   "tests": [
     {
-      "name": "Health check",
+      "name": "Register new user",
+      "method": "POST",
+      "path": "/?action=register",
+      "body": {"email": "test_security@example.com", "password": "testpass123", "name": "Test User"},
+      "expectedStatus": 200,
+      "expectedBody": {"token": "string"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Login with valid credentials",
+      "method": "POST",
+      "path": "/?action=login",
+      "body": {"email": "test_security@example.com", "password": "testpass123"},
+      "expectedStatus": 200,
+      "expectedBody": {"token": "string"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Login with wrong password returns 401",
+      "method": "POST",
+      "path": "/?action=login",
+      "body": {"email": "test_security@example.com", "password": "wrongpassword"},
+      "expectedStatus": 401,
+      "expectedBody": {"error": "string"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Access me without token returns 401",
       "method": "GET",
-      "path": "/",
-      "expectedStatus": 404,
+      "path": "/?action=me",
+      "expectedStatus": 401,
+      "expectedBody": {"error": "string"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Forged token is rejected",
+      "method": "GET",
+      "path": "/?action=me",
+      "headers": {"X-Auth-Token": "1:forged_signature_that_should_not_work"},
+      "expectedStatus": 401,
+      "expectedBody": {"error": "string"},
       "bodyMatcher": "partial"
     }
   ]

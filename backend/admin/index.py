@@ -1,5 +1,6 @@
 import json
 import os
+import hmac
 import psycopg2
 
 CORS_HEADERS = {
@@ -16,15 +17,32 @@ def verify_admin(token: str):
     if not token:
         return None
     try:
-        user_id_str, _ = token.split(':', 1)
+        parts = token.split(':', 1)
+        if len(parts) != 2:
+            return None
+        user_id_str, token_sig = parts
         user_id = int(user_id_str)
+
+        expected_hash = hmac.new(
+            os.environ['SECRET_KEY'].encode('utf-8'),
+            token_sig.encode('utf-8'),
+            'sha256'
+        ).hexdigest()
+
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("SELECT id, email, name, role FROM users WHERE id = %s AND role = 'admin'", (user_id,))
+        cur.execute(
+            "SELECT id, email, name, role, token_hash FROM users WHERE id = %s AND role = 'admin'",
+            (user_id,)
+        )
         row = cur.fetchone()
         conn.close()
-        if not row:
+
+        if not row or not row[4]:
             return None
+        if not hmac.compare_digest(expected_hash, row[4]):
+            return None
+
         return {'id': row[0], 'email': row[1], 'name': row[2], 'role': row[3]}
     except Exception:
         return None
