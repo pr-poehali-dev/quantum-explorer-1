@@ -18,6 +18,12 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Link to="/contacts">
+            <Button variant="ghost" className="rounded-full font-mono text-sm text-muted-foreground hover:text-foreground">
+              Контакты
+            </Button>
+          </Link>
+
           <a href="#catalog">
             <Button
               className="bg-primary text-primary-foreground rounded-full px-6 transition-all duration-300 hover:scale-105 hover:shadow-[0_0_20px_hsl(var(--primary)/0.5)]"
