@@ -57,7 +57,7 @@ export default function Footer() {
         </div>
 
         <div className="w-full px-6 py-4 border-t border-border flex md:flex-row items-center justify-between gap-2 flex-row">
-          <p className="text-muted-foreground text-sm font-mono">2025 SweetShop</p>
+          <p className="text-muted-foreground text-sm font-mono">2026 SweetShop</p>
           <p className="text-muted-foreground text-sm font-mono">poehali.dev</p>
         </div>
       </div>
