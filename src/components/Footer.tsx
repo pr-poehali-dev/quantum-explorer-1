@@ -33,7 +33,7 @@ export default function Footer() {
 
           <div className="hidden md:flex flex-1 justify-end items-center relative">
             <div className="relative flex items-center justify-center">
-              <span className="text-[120px]">🍌</span>
+              <span className="text-[120px] inline-block animate-[banana_2s_ease-in-out_infinite]">🍌</span>
             </div>
           </div>
         </div>

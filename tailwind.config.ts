@@ -69,6 +69,12 @@ export default {
 				sm: 'calc(var(--radius) - 4px)'
 			},
 			keyframes: {
+				banana: {
+					'0%, 100%': { transform: 'rotate(-10deg) scale(1)' },
+					'25%': { transform: 'rotate(10deg) scale(1.1)' },
+					'50%': { transform: 'rotate(-5deg) scale(1.15)' },
+					'75%': { transform: 'rotate(8deg) scale(1.05)' },
+				},
 				'accordion-down': {
 					from: {
 						height: '0'
