@@ -26,7 +26,7 @@ export const auth = {
   login: (email: string, password: string) =>
     request(AUTH_URL, 'login', 'POST', { email, password }),
   me: () => request(AUTH_URL, 'me'),
-  updateProfile: (data: { name?: string; phone?: string; address?: string }) =>
+  updateProfile: (data: { name?: string; phone?: string; address?: string; email?: string; password?: string }) =>
     request(AUTH_URL, 'profile', 'PUT', data),
   changePassword: (old_password: string, new_password: string) =>
     request(AUTH_URL, 'password', 'PUT', { old_password, new_password }),

@@ -24,6 +24,8 @@ export default function ProfilePage() {
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [address, setAddress] = useState(user?.address || '');
+  const [email, setEmail] = useState(user?.email || '');
+  const [emailPassword, setEmailPassword] = useState('');
   const [oldPwd, setOldPwd] = useState('');
   const [newPwd, setNewPwd] = useState('');
   const [orders, setOrders] = useState<unknown[]>([]);
@@ -35,6 +37,7 @@ export default function ProfilePage() {
     setName(user.name || '');
     setPhone(user.phone || '');
     setAddress(user.address || '');
+    setEmail(user.email || '');
     shop.getOrders().then(d => setOrders(d.orders || [])).catch(() => {});
   }, [user, navigate]);
 
@@ -42,8 +45,16 @@ export default function ProfilePage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await auth.updateProfile({ name, phone, address });
+      const emailChanged = email.trim().toLowerCase() !== (user?.email || '').toLowerCase();
+      const payload: { name?: string; phone?: string; address?: string; email?: string; password?: string } = { name, phone, address };
+      if (emailChanged) {
+        if (!emailPassword) { toast.error('Введите пароль для смены email'); setSaving(false); return; }
+        payload.email = email.trim().toLowerCase();
+        payload.password = emailPassword;
+      }
+      await auth.updateProfile(payload);
       await refreshUser();
+      setEmailPassword('');
       toast.success('Данные сохранены');
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Ошибка');
@@ -96,6 +107,16 @@ export default function ProfilePage() {
                   <Label>Имя</Label>
                   <Input value={name} onChange={e => setName(e.target.value)} className="mt-1" placeholder="Ваше имя" />
                 </div>
+                <div>
+                  <Label>Email</Label>
+                  <Input type="email" value={email} onChange={e => setEmail(e.target.value)} className="mt-1" placeholder="you@example.com" required />
+                </div>
+                {email.trim().toLowerCase() !== (user?.email || '').toLowerCase() && (
+                  <div>
+                    <Label>Пароль для подтверждения смены email</Label>
+                    <Input type="password" value={emailPassword} onChange={e => setEmailPassword(e.target.value)} className="mt-1" placeholder="Введите текущий пароль" required />
+                  </div>
+                )}
                 <div>
                   <Label>Телефон</Label>
                   <Input value={phone} onChange={e => setPhone(e.target.value)} className="mt-1" placeholder="+7 (999) 000-00-00" />

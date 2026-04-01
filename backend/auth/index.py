@@ -185,9 +185,33 @@ def handler(event: dict, context) -> dict:
         name = body.get('name', user['name'])
         phone = body.get('phone', user['phone'])
         address = body.get('address', user['address'])
+        new_email = body.get('email', '').strip().lower()
+
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("UPDATE users SET name=%s, phone=%s, address=%s WHERE id=%s", (name, phone, address, user['id']))
+
+        # Если email меняется — проверяем уникальность и пароль
+        if new_email and new_email != user['email']:
+            if not body.get('password'):
+                conn.close()
+                return {'statusCode': 400, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Для смены email введите текущий пароль'})}
+            cur.execute("SELECT password_hash FROM users WHERE id=%s", (user['id'],))
+            pwd_row = cur.fetchone()
+            if not pwd_row or not verify_password(body['password'], pwd_row[0]):
+                conn.close()
+                return {'statusCode': 400, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Неверный пароль'})}
+            cur.execute("SELECT id FROM users WHERE email=%s AND id != %s", (new_email, user['id']))
+            if cur.fetchone():
+                conn.close()
+                return {'statusCode': 409, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Этот email уже занят'})}
+            email_to_save = new_email
+        else:
+            email_to_save = user['email']
+
+        cur.execute(
+            "UPDATE users SET name=%s, phone=%s, address=%s, email=%s WHERE id=%s",
+            (name, phone, address, email_to_save, user['id'])
+        )
         conn.commit()
         conn.close()
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'ok': True})}
