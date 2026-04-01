@@ -19,6 +19,7 @@ interface Product { id: number; name: string; description: string; price: number
 interface Order { id: number; status: string; total: number; name: string; phone: string; address: string; comment: string; created_at: string; user_email: string; items: Array<{name: string; price: number; quantity: number}>; }
 interface User { id: number; email: string; name: string; phone: string; role: string; created_at: string; }
 interface Stats { orders_count: number; revenue: number; users_count: number; products_count: number; new_orders: number; }
+interface Manager { id: number; email: string; name: string; created_at: string; }
 
 export default function AdminPage() {
   const { user, loading } = useAuth();
@@ -27,8 +28,11 @@ export default function AdminPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [managers, setManagers] = useState<Manager[]>([]);
   const [editProduct, setEditProduct] = useState<Partial<Product> | null>(null);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
+  const [editManager, setEditManager] = useState<Partial<Manager> | null>(null);
+  const [managerDialogOpen, setManagerDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'admin')) { navigate('/login'); }
@@ -40,6 +44,7 @@ export default function AdminPage() {
       admin.getProducts().then(d => setProducts(d.products || [])).catch(() => {});
       admin.getOrders().then(d => setOrders(d.orders || [])).catch(() => {});
       admin.getUsers().then(d => setUsers(d.users || [])).catch(() => {});
+      admin.getManagers().then(d => setManagers(d.managers || [])).catch(() => {});
     }
   }, [user]);
 
@@ -83,6 +88,33 @@ export default function AdminPage() {
     toast.success('Роль обновлена');
   };
 
+  const handleSaveManager = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editManager) return;
+    try {
+      if (editManager.id) {
+        await admin.updateManager({ id: editManager.id, email: editManager.email || '', name: editManager.name });
+        toast.success('Менеджер обновлён');
+      } else {
+        await admin.createManager({ email: editManager.email || '', name: editManager.name });
+        toast.success('Менеджер добавлен');
+      }
+      setManagerDialogOpen(false);
+      setEditManager(null);
+      const d = await admin.getManagers();
+      setManagers(d.managers || []);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Ошибка');
+    }
+  };
+
+  const handleDeleteManager = async (id: number) => {
+    await admin.deleteManager(id);
+    toast.success('Менеджер удалён');
+    const d = await admin.getManagers();
+    setManagers(d.managers || []);
+  };
+
   if (loading || !user) return null;
 
   return (
@@ -119,6 +151,7 @@ export default function AdminPage() {
             <TabsTrigger value="orders" className="flex-1">Заказы</TabsTrigger>
             <TabsTrigger value="products" className="flex-1">Товары</TabsTrigger>
             <TabsTrigger value="users" className="flex-1">Пользователи</TabsTrigger>
+            <TabsTrigger value="managers" className="flex-1">Менеджеры</TabsTrigger>
           </TabsList>
 
           <TabsContent value="orders">
@@ -217,6 +250,74 @@ export default function AdminPage() {
                   </Select>
                 </div>
               ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="managers">
+            <div className="flex justify-between items-center mb-4">
+              <p className="text-sm text-muted-foreground font-mono">Менеджеры получают email-уведомления о каждом новом заказе</p>
+              <Dialog open={managerDialogOpen} onOpenChange={v => { setManagerDialogOpen(v); if (!v) setEditManager(null); }}>
+                <DialogTrigger asChild>
+                  <Button onClick={() => setEditManager({})}>
+                    <Icon name="Plus" size={16} className="mr-2" /> Добавить менеджера
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle className="font-mono">{editManager?.id ? 'Редактировать менеджера' : 'Новый менеджер'}</DialogTitle></DialogHeader>
+                  <form onSubmit={handleSaveManager} className="space-y-3">
+                    <div>
+                      <Label>Email <span className="text-destructive">*</span></Label>
+                      <Input
+                        type="email"
+                        value={editManager?.email || ''}
+                        onChange={e => setEditManager(p => ({...p, email: e.target.value}))}
+                        className="mt-1"
+                        placeholder="manager@company.ru"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label>Имя</Label>
+                      <Input
+                        value={editManager?.name || ''}
+                        onChange={e => setEditManager(p => ({...p, name: e.target.value}))}
+                        className="mt-1"
+                        placeholder="Иван Петров"
+                      />
+                    </div>
+                    <Button type="submit" className="w-full">Сохранить</Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+            <div className="space-y-2">
+              {managers.map(m => (
+                <div key={m.id} className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
+                  <div className="bg-primary/10 rounded-full p-2 flex-shrink-0">
+                    <Icon name="Mail" size={18} className="text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-mono font-bold text-foreground">{m.name || '—'}</p>
+                    <p className="font-mono text-sm text-muted-foreground">{m.email}</p>
+                  </div>
+                  <span className="font-mono text-xs text-muted-foreground flex-shrink-0">{new Date(m.created_at).toLocaleDateString('ru-RU')}</span>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => { setEditManager(m); setManagerDialogOpen(true); }}>
+                      <Icon name="Pencil" size={14} />
+                    </Button>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleDeleteManager(m.id)}>
+                      <Icon name="Trash2" size={14} />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {managers.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground font-mono">
+                  <Icon name="Mail" size={32} className="mx-auto mb-3 opacity-30" />
+                  <p>Менеджеры не добавлены</p>
+                  <p className="text-xs mt-1">Добавьте email менеджера, чтобы он получал уведомления о новых заказах</p>
+                </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>

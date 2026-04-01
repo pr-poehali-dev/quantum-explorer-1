@@ -150,6 +150,59 @@ def handler(event: dict, context) -> dict:
 
         conn.close()
 
+    # --- MANAGERS ---
+    if action == 'managers':
+        conn = get_db()
+        cur = conn.cursor()
+
+        if method == 'GET':
+            cur.execute("SELECT id, email, name, created_at FROM managers ORDER BY id")
+            rows = cur.fetchall()
+            conn.close()
+            managers = [{'id': r[0], 'email': r[1], 'name': r[2], 'created_at': str(r[3])} for r in rows]
+            return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'managers': managers})}
+
+        if method == 'POST':
+            email = body.get('email', '').strip()
+            name = body.get('name', '').strip()
+            if not email:
+                conn.close()
+                return {'statusCode': 400, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Email обязателен'})}
+            try:
+                cur.execute("INSERT INTO managers (email, name) VALUES (%s, %s) RETURNING id", (email, name or None))
+                new_id = cur.fetchone()[0]
+                conn.commit()
+                conn.close()
+                return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'ok': True, 'id': new_id})}
+            except Exception as e:
+                conn.close()
+                return {'statusCode': 400, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Менеджер с таким email уже существует'})}
+
+        if method == 'PUT':
+            mid = body.get('id')
+            email = body.get('email', '').strip()
+            name = body.get('name', '').strip()
+            if not email:
+                conn.close()
+                return {'statusCode': 400, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Email обязателен'})}
+            try:
+                cur.execute("UPDATE managers SET email=%s, name=%s WHERE id=%s", (email, name or None, mid))
+                conn.commit()
+                conn.close()
+                return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'ok': True})}
+            except Exception as e:
+                conn.close()
+                return {'statusCode': 400, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Менеджер с таким email уже существует'})}
+
+        if method == 'DELETE':
+            mid = body.get('id') or (event.get('queryStringParameters') or {}).get('id')
+            cur.execute("DELETE FROM managers WHERE id=%s", (mid,))
+            conn.commit()
+            conn.close()
+            return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'ok': True})}
+
+        conn.close()
+
     # --- STATS ---
     if method == 'GET' and action == 'stats':
         conn = get_db()

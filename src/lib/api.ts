@@ -54,4 +54,8 @@ export const admin = {
   updateOrder: (id: number, status: string) => request(ADMIN_URL, 'orders', 'PUT', { id, status }),
   getUsers: () => request(ADMIN_URL, 'users'),
   updateUser: (id: number, role: string) => request(ADMIN_URL, 'users', 'PUT', { id, role }),
+  getManagers: () => request(ADMIN_URL, 'managers'),
+  createManager: (data: { email: string; name?: string }) => request(ADMIN_URL, 'managers', 'POST', data),
+  updateManager: (data: { id: number; email: string; name?: string }) => request(ADMIN_URL, 'managers', 'PUT', data),
+  deleteManager: (id: number) => request(ADMIN_URL, 'managers', 'DELETE', { id }),
 };
