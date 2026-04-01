@@ -265,4 +265,26 @@ def handler(event: dict, context) -> dict:
         conn.close()
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'orders': orders})}
 
+    # POST ?action=test_email  (для проверки SMTP)
+    if method == 'POST' and action == 'test_email':
+        to_email = body.get('to_email', '')
+        if not to_email:
+            return {'statusCode': 400, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'to_email обязателен'})}
+        try:
+            send_order_email(
+                to_email=to_email,
+                order_id=9999,
+                name='Тестовый пользователь',
+                address='г. Москва, ул. Тестовая, д. 1',
+                phone='+7 999 000 00 00',
+                items=[
+                    {'name': 'Тестовый товар 1', 'price': 1500.0, 'quantity': 2},
+                    {'name': 'Тестовый товар 2', 'price': 2990.0, 'quantity': 1},
+                ],
+                total=5990.0
+            )
+            return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'ok': True, 'message': f'Письмо отправлено на {to_email}'})}
+        except Exception as e:
+            return {'statusCode': 500, 'headers': CORS_HEADERS, 'body': json.dumps({'error': str(e)})}
+
     return {'statusCode': 404, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Not found'})}
