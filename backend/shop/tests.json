@@ -1,10 +1,10 @@
 {
   "tests": [
     {
-      "name": "Products list",
+      "name": "Health check",
       "method": "GET",
-      "path": "/?action=products",
-      "expectedStatus": 200,
+      "path": "/",
+      "expectedStatus": 404,
       "bodyMatcher": "partial"
     }
   ]
