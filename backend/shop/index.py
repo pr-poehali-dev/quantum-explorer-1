@@ -1,6 +1,10 @@
 import json
 import os
 import hmac
+import smtplib
+import ssl
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import psycopg2
 
 CORS_HEADERS = {
@@ -12,6 +16,78 @@ CORS_HEADERS = {
 
 def get_db():
     return psycopg2.connect(os.environ['DATABASE_URL'])
+
+def send_order_email(to_email: str, order_id: int, name: str, address: str, phone: str, items: list, total: float):
+    smtp_host = os.environ.get('SMTP_HOST', '')
+    smtp_port = int(os.environ.get('SMTP_PORT', 465))
+    smtp_user = os.environ.get('SMTP_USER', '')
+    smtp_password = os.environ.get('SMTP_PASSWORD', '')
+
+    if not smtp_host or not smtp_user or not smtp_password:
+        return  # SMTP не настроен — пропускаем
+
+    items_rows = ''.join(
+        f"<tr><td style='padding:6px 12px;border-bottom:1px solid #f0f0f0'>{i['name']}</td>"
+        f"<td style='padding:6px 12px;border-bottom:1px solid #f0f0f0;text-align:center'>{i['quantity']}</td>"
+        f"<td style='padding:6px 12px;border-bottom:1px solid #f0f0f0;text-align:right'>{int(i['price'] * i['quantity']):,} ₽</td></tr>"
+        for i in items
+    )
+
+    html = f"""
+    <html><body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif">
+    <div style="max-width:560px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08)">
+      <div style="background:#18181b;padding:28px 32px">
+        <h1 style="margin:0;color:#fff;font-size:22px;letter-spacing:-0.5px">Заказ #{ order_id } оформлен ✅</h1>
+      </div>
+      <div style="padding:28px 32px">
+        <p style="margin:0 0 8px;color:#444">Привет, <strong>{ name }</strong>!</p>
+        <p style="margin:0 0 24px;color:#666;font-size:14px">Ваш заказ успешно принят. Мы свяжемся с вами по номеру <strong>{ phone }</strong>.</p>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:20px">
+          <thead>
+            <tr style="background:#f5f5f5">
+              <th style="padding:8px 12px;text-align:left;font-size:13px;color:#888;font-weight:600">Товар</th>
+              <th style="padding:8px 12px;text-align:center;font-size:13px;color:#888;font-weight:600">Кол-во</th>
+              <th style="padding:8px 12px;text-align:right;font-size:13px;color:#888;font-weight:600">Сумма</th>
+            </tr>
+          </thead>
+          <tbody>{ items_rows }</tbody>
+        </table>
+
+        <div style="background:#f9f9f9;border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;margin-bottom:20px">
+          <span style="font-size:15px;color:#444;font-weight:600">Итого:</span>
+          <span style="font-size:17px;color:#18181b;font-weight:700">{ int(total):,} ₽</span>
+        </div>
+
+        <p style="margin:0 0 4px;font-size:13px;color:#888">Адрес доставки</p>
+        <p style="margin:0 0 20px;font-size:14px;color:#333">{ address }</p>
+
+        <p style="margin:0;font-size:13px;color:#aaa;text-align:center">Это автоматическое письмо — отвечать на него не нужно</p>
+      </div>
+    </div>
+    </body></html>
+    """
+
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = f'Заказ #{order_id} оформлен'
+    msg['From'] = smtp_user
+    msg['To'] = to_email
+    msg.attach(MIMEText(html, 'html', 'utf-8'))
+
+    try:
+        context = ssl.create_default_context()
+        if smtp_port == 465:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context) as server:
+                server.login(smtp_user, smtp_password)
+                server.sendmail(smtp_user, to_email, msg.as_string())
+        else:
+            with smtplib.SMTP(smtp_host, smtp_port) as server:
+                server.ehlo()
+                server.starttls(context=context)
+                server.login(smtp_user, smtp_password)
+                server.sendmail(smtp_user, to_email, msg.as_string())
+    except Exception as e:
+        print(f'[email] Ошибка отправки письма: {e}')
 
 def verify_token(token: str):
     if not token:
@@ -156,6 +232,19 @@ def handler(event: dict, context) -> dict:
         cur.execute("DELETE FROM cart_items WHERE user_id=%s", (user['id'],))
         conn.commit()
         conn.close()
+
+        # Отправляем письмо клиенту
+        email_items = [{'name': pname, 'price': pprice, 'quantity': qty} for qty, pid, pname, pprice in cart]
+        send_order_email(
+            to_email=user['email'],
+            order_id=order_id,
+            name=name,
+            address=address,
+            phone=phone,
+            items=email_items,
+            total=total
+        )
+
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'ok': True, 'order_id': order_id})}
 
     # GET ?action=orders
