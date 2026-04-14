@@ -413,4 +413,81 @@ def handler(event: dict, context) -> dict:
             'user': {'id': new_id, 'email': ya_email, 'name': ya_name, 'role': 'user', 'email_verified': True}
         })}
 
+    # POST ?action=telegram-auth — проверка данных от Telegram Login Widget
+    if method == 'POST' and action == 'telegram-auth':
+        tg_data = body.get('tg_data')
+        if not tg_data or not isinstance(tg_data, dict):
+            return {'statusCode': 400, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'tg_data обязателен'})}
+
+        bot_token = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+        if not bot_token:
+            return {'statusCode': 500, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Telegram бот не настроен'})}
+
+        # Проверяем подпись от Telegram
+        check_hash = tg_data.pop('hash', '')
+        data_check_arr = sorted([f"{k}={v}" for k, v in tg_data.items()])
+        data_check_string = '\n'.join(data_check_arr)
+        secret_key = hmac.new(b'WebAppData', bot_token.encode('utf-8'), 'sha256').digest()
+        computed_hash = hmac.new(secret_key, data_check_string.encode('utf-8'), 'sha256').hexdigest()
+
+        if not hmac.compare_digest(computed_hash, check_hash):
+            return {'statusCode': 403, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Неверная подпись Telegram'})}
+
+        # Проверяем актуальность данных (не старше 1 часа)
+        auth_date = int(tg_data.get('auth_date', 0))
+        if int(time.time()) - auth_date > 3600:
+            return {'statusCode': 403, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Данные Telegram устарели, войдите повторно'})}
+
+        tg_id = int(tg_data.get('id', 0))
+        tg_first = tg_data.get('first_name', '')
+        tg_last = tg_data.get('last_name', '')
+        tg_name = f"{tg_first} {tg_last}".strip() or tg_first or f"tg_{tg_id}"
+        tg_username = tg_data.get('username', '')
+
+        conn = get_db()
+        cur = conn.cursor()
+
+        # Ищем по telegram_id
+        cur.execute("SELECT id, email, name, role FROM users WHERE telegram_id = %s", (tg_id,))
+        row = cur.fetchone()
+
+        if row:
+            token_val = generate_token(row[0], conn)
+            conn.commit()
+            conn.close()
+            return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({
+                'token': token_val,
+                'user': {'id': row[0], 'email': row[1], 'name': row[2], 'role': row[3], 'email_verified': True}
+            })}
+
+        # Новый пользователь — регистрируем без email (используем fake email на основе tg_id)
+        fake_email = f"tg_{tg_id}@telegram.local"
+        cur.execute("SELECT id, email, name, role FROM users WHERE email = %s", (fake_email,))
+        existing = cur.fetchone()
+
+        if existing:
+            cur.execute("UPDATE users SET telegram_id = %s WHERE id = %s", (tg_id, existing[0]))
+            token_val = generate_token(existing[0], conn)
+            conn.commit()
+            conn.close()
+            return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({
+                'token': token_val,
+                'user': {'id': existing[0], 'email': existing[1], 'name': existing[2], 'role': existing[3], 'email_verified': True}
+            })}
+
+        cur.execute(
+            "INSERT INTO users (email, password_hash, name, email_verified, telegram_id) VALUES (%s, %s, %s, TRUE, %s) RETURNING id",
+            (fake_email, '', tg_name, tg_id)
+        )
+        new_id = cur.fetchone()[0]
+        token_val = generate_token(new_id, conn)
+        conn.commit()
+        conn.close()
+
+        display_name = f"@{tg_username}" if tg_username else tg_name
+        return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({
+            'token': token_val,
+            'user': {'id': new_id, 'email': fake_email, 'name': display_name, 'role': 'user', 'email_verified': True}
+        })}
+
     return {'statusCode': 404, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Not found'})}

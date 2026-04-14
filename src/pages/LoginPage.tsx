@@ -8,14 +8,27 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import Icon from '@/components/ui/icon';
 import YandexOAuthButton from '@/components/YandexOAuthButton';
+import TelegramLoginButton from '@/components/TelegramLoginButton';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, setUser } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [notVerified, setNotVerified] = useState(false);
+
+  const handleTelegramAuth = async (tgUser: Record<string, string | number>) => {
+    try {
+      const data = await auth.telegramAuth(tgUser);
+      localStorage.setItem('auth_token', data.token);
+      setUser(data.user);
+      toast.success('Добро пожаловать!');
+      navigate('/profile');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Ошибка входа через Telegram');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,6 +82,9 @@ export default function LoginPage() {
             </div>
           )}
           <YandexOAuthButton label="Войти через Яндекс" />
+          <div className="mt-3">
+            <TelegramLoginButton onAuth={handleTelegramAuth} />
+          </div>
           <div className="flex items-center gap-3 my-4">
             <div className="flex-1 h-px bg-border" />
             <span className="text-xs text-muted-foreground font-mono">или</span>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,12 +8,27 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import Icon from '@/components/ui/icon';
 import YandexOAuthButton from '@/components/YandexOAuthButton';
+import TelegramLoginButton from '@/components/TelegramLoginButton';
 
 export default function RegisterPage() {
+  const { setUser } = useAuth();
+  const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleTelegramAuth = async (tgUser: Record<string, string | number>) => {
+    try {
+      const data = await auth.telegramAuth(tgUser);
+      localStorage.setItem('auth_token', data.token);
+      setUser(data.user);
+      toast.success('Аккаунт создан через Telegram!');
+      navigate('/profile');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Ошибка входа через Telegram');
+    }
+  };
   const [done, setDone] = useState(false);
   const [sentEmail, setSentEmail] = useState('');
 
@@ -84,6 +100,9 @@ export default function RegisterPage() {
         </div>
         <div className="bg-card border border-border rounded-2xl p-6">
           <YandexOAuthButton label="Зарегистрироваться через Яндекс" />
+          <div className="mt-3">
+            <TelegramLoginButton onAuth={handleTelegramAuth} />
+          </div>
           <div className="flex items-center gap-3 my-4">
             <div className="flex-1 h-px bg-border" />
             <span className="text-xs text-muted-foreground font-mono">или</span>

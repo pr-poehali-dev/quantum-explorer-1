@@ -46,6 +46,8 @@ export const auth = {
     request(AUTH_URL, 'password', 'PUT', { old_password, new_password }),
   yandexOAuth: (code: string) =>
     request(AUTH_URL, 'yandex-oauth', 'POST', { code }),
+  telegramAuth: (tg_data: Record<string, string | number>) =>
+    request(AUTH_URL, 'telegram-auth', 'POST', { tg_data }),
 };
 
 export const shop = {
