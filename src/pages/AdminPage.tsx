@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import { Link } from 'react-router-dom';
 import { admin } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,8 +21,6 @@ interface Stats { orders_count: number; revenue: number; users_count: number; pr
 interface Manager { id: number; email: string; name: string; created_at: string; }
 
 export default function AdminPage() {
-  const { user, loading } = useAuth();
-  const navigate = useNavigate();
   const [stats, setStats] = useState<Stats | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -35,18 +32,12 @@ export default function AdminPage() {
   const [managerDialogOpen, setManagerDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'admin')) { navigate('/login'); }
-  }, [user, loading, navigate]);
-
-  useEffect(() => {
-    if (user?.role === 'admin') {
-      admin.getStats().then(d => setStats(d)).catch(() => {});
-      admin.getProducts().then(d => setProducts(d.products || [])).catch(() => {});
-      admin.getOrders().then(d => setOrders(d.orders || [])).catch(() => {});
-      admin.getUsers().then(d => setUsers(d.users || [])).catch(() => {});
-      admin.getManagers().then(d => setManagers(d.managers || [])).catch(() => {});
-    }
-  }, [user]);
+    admin.getStats().then(d => setStats(d)).catch(() => {});
+    admin.getProducts().then(d => setProducts(d.products || [])).catch(() => {});
+    admin.getOrders().then(d => setOrders(d.orders || [])).catch(() => {});
+    admin.getUsers().then(d => setUsers(d.users || [])).catch(() => {});
+    admin.getManagers().then(d => setManagers(d.managers || [])).catch(() => {});
+  }, []);
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,8 +105,6 @@ export default function AdminPage() {
     const d = await admin.getManagers();
     setManagers(d.managers || []);
   };
-
-  if (loading || !user) return null;
 
   return (
     <div className="min-h-screen bg-background px-4 py-8">

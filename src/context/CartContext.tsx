@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { shop } from '@/lib/api';
-import { useAuth } from './AuthContext';
 
 interface CartItem {
   cart_id: number;
@@ -25,18 +24,16 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
   const [items, setItems] = useState<CartItem[]>([]);
 
   const refreshCart = useCallback(async () => {
-    if (!user) { setItems([]); return; }
     try {
       const data = await shop.getCart();
       setItems(data.items || []);
     } catch {
       setItems([]);
     }
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     refreshCart();

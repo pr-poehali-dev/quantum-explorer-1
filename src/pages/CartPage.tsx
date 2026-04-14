@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '@/context/CartContext';
 import { shop } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -11,31 +10,14 @@ import { toast } from 'sonner';
 import Icon from '@/components/ui/icon';
 
 export default function CartPage() {
-  const { user } = useAuth();
   const { items, totalPrice, updateQuantity, refreshCart } = useCart();
   const navigate = useNavigate();
   const [step, setStep] = useState<'cart' | 'checkout'>('cart');
-  const [name, setName] = useState(user?.name || '');
+  const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [comment, setComment] = useState('');
   const [placing, setPlacing] = useState(false);
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
-        <div className="text-center">
-          <span className="text-5xl mb-4 block">🛒</span>
-          <h2 className="text-xl font-bold text-foreground font-mono mb-2">Войдите, чтобы видеть корзину</h2>
-          <p className="text-muted-foreground font-mono text-sm mb-4">Для оформления заказа нужен аккаунт</p>
-          <div className="flex gap-3 justify-center">
-            <Button asChild><Link to="/login">Войти</Link></Button>
-            <Button variant="outline" asChild><Link to="/register">Зарегистрироваться</Link></Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +27,7 @@ export default function CartPage() {
       const data = await shop.createOrder({ name, phone, address, comment });
       await refreshCart();
       toast.success(`Заказ #${data.order_id} оформлен!`);
-      navigate('/profile');
+      navigate('/');
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Ошибка оформления');
     } finally {

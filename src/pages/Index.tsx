@@ -7,8 +7,6 @@ import HeroTextOverlay from "@/components/HeroTextOverlay"
 import Icon from "@/components/ui/icon"
 import { shop } from "@/lib/api"
 import { useCart } from "@/context/CartContext"
-import { useAuth } from "@/context/AuthContext"
-import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 
 interface Product {
@@ -24,15 +22,12 @@ interface Product {
 const Index = () => {
   const [products, setProducts] = useState<Product[]>([])
   const { addToCart } = useCart()
-  const { user } = useAuth()
-  const navigate = useNavigate()
 
   useEffect(() => {
     shop.getProducts().then(d => setProducts(d.products || [])).catch(() => {})
   }, [])
 
   const handleAddToCart = async (productId: number) => {
-    if (!user) { navigate("/login"); return; }
     try {
       await addToCart(productId)
       toast.success("Добавлено в корзину!")
