@@ -1,0 +1,4 @@
+ALTER TABLE t_p56991462_quantum_explorer_1.users
+  ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS email_verify_token VARCHAR(128) NULL,
+  ADD COLUMN IF NOT EXISTS email_verify_sent_at TIMESTAMP NULL;

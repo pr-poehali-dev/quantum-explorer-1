@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { shop } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -10,29 +11,36 @@ import { toast } from 'sonner';
 import Icon from '@/components/ui/icon';
 
 export default function CartPage() {
+  const { user } = useAuth();
   const { items, totalPrice, updateQuantity, refreshCart } = useCart();
   const navigate = useNavigate();
   const [step, setStep] = useState<'cart' | 'checkout'>('cart');
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
+  const [name, setName] = useState(user?.name || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [address, setAddress] = useState(user?.address || '');
   const [comment, setComment] = useState('');
   const [placing, setPlacing] = useState(false);
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) { toast.error('Корзина пуста'); return; }
+    if (!user) { navigate('/login'); return; }
     setPlacing(true);
     try {
       const data = await shop.createOrder({ name, phone, address, comment });
       await refreshCart();
       toast.success(`Заказ #${data.order_id} оформлен!`);
-      navigate('/');
+      navigate('/profile');
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Ошибка оформления');
     } finally {
       setPlacing(false);
     }
+  };
+
+  const handleCheckoutClick = () => {
+    if (!user) { navigate('/login'); return; }
+    setStep('checkout');
   };
 
   return (
@@ -57,7 +65,9 @@ export default function CartPage() {
                   {items.map(item => (
                     <div key={item.product_id} className="bg-card border border-border rounded-2xl p-4 flex items-center gap-4">
                       <div className="text-3xl flex-shrink-0">
-                        {item.image_url ? <img src={item.image_url} className="w-12 h-12 rounded-xl object-cover" alt={item.name} /> : item.emoji}
+                        {item.image_url
+                          ? <img src={item.image_url} className="w-12 h-12 rounded-xl object-cover" alt={item.name} />
+                          : item.emoji}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-mono font-bold text-foreground truncate">{item.name}</p>
@@ -84,7 +94,14 @@ export default function CartPage() {
                   <span className="font-mono text-foreground font-bold">Итого:</span>
                   <span className="font-mono text-primary font-bold text-xl">{totalPrice.toLocaleString()} ₽</span>
                 </div>
-                <Button className="w-full mt-4" size="lg" onClick={() => setStep('checkout')}>
+                {!user && (
+                  <p className="text-center text-sm font-mono text-muted-foreground mt-3">
+                    Для оформления заказа нужно{' '}
+                    <Link to="/login" className="text-primary hover:underline">войти</Link> или{' '}
+                    <Link to="/register" className="text-primary hover:underline">зарегистрироваться</Link>
+                  </p>
+                )}
+                <Button className="w-full mt-4" size="lg" onClick={handleCheckoutClick}>
                   Оформить заказ <Icon name="ArrowRight" size={16} className="ml-2" />
                 </Button>
               </>

@@ -1,5 +1,6 @@
 import json
 import os
+import hmac
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -8,9 +9,36 @@ import psycopg2
 CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Session-Id',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Session-Id, X-Auth-Token',
     'Access-Control-Max-Age': '86400',
 }
+
+def verify_token(token: str):
+    if not token:
+        return None
+    try:
+        parts = token.split(':', 1)
+        if len(parts) != 2:
+            return None
+        user_id = int(parts[0])
+        token_sig = parts[1]
+        expected_hash = hmac.new(
+            os.environ['SECRET_KEY'].encode('utf-8'),
+            token_sig.encode('utf-8'),
+            'sha256'
+        ).hexdigest()
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT id, email, name, token_hash FROM users WHERE id = %s AND email_verified = TRUE", (user_id,))
+        row = cur.fetchone()
+        conn.close()
+        if not row or not row[3]:
+            return None
+        if not hmac.compare_digest(expected_hash, row[3]):
+            return None
+        return {'id': row[0], 'email': row[1], 'name': row[2]}
+    except Exception:
+        return None
 
 def get_db():
     return psycopg2.connect(os.environ['DATABASE_URL'])
@@ -264,7 +292,7 @@ def send_manager_notification(order_id: int, name: str, phone: str, address: str
 
 
 def handler(event: dict, context) -> dict:
-    """Магазин: товары, корзина, заказы (без авторизации, на основе session_id)"""
+    """Магазин: товары, корзина, заказы. Корзина — по session_id, заказы — требуют авторизации."""
     if event.get('httpMethod') == 'OPTIONS':
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': ''}
 
@@ -277,6 +305,8 @@ def handler(event: dict, context) -> dict:
 
     headers = event.get('headers', {})
     session_id = headers.get('X-Session-Id') or headers.get('x-session-id', '')
+    token = headers.get('X-Auth-Token') or headers.get('x-auth-token', '')
+    current_user = verify_token(token) if token else None
 
     # GET ?action=products
     if method == 'GET' and action == 'products':
@@ -342,13 +372,14 @@ def handler(event: dict, context) -> dict:
 
     # POST ?action=orders
     if method == 'POST' and action == 'orders':
+        if not current_user:
+            return {'statusCode': 401, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Войдите в аккаунт для оформления заказа'})}
         if not session_id:
             return {'statusCode': 400, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'session_id обязателен'})}
-        name = body.get('name', '')
+        name = body.get('name', current_user.get('name', ''))
         phone = body.get('phone', '')
         address = body.get('address', '')
         comment = body.get('comment', '')
-        email = body.get('email', '')
         conn = get_db()
         cur = conn.cursor()
         cur.execute("""
@@ -361,8 +392,10 @@ def handler(event: dict, context) -> dict:
             conn.close()
             return {'statusCode': 400, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Корзина пуста'})}
         total = sum(r[0] * r[3] for r in cart)
-        cur.execute("INSERT INTO orders (total, name, phone, address, comment) VALUES (%s, %s, %s, %s, %s) RETURNING id",
-                    (total, name, phone, address, comment))
+        cur.execute(
+            "INSERT INTO orders (user_id, total, name, phone, address, comment) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
+            (current_user['id'], total, name, phone, address, comment)
+        )
         order_id = cur.fetchone()[0]
         for qty, pid, pname, pprice in cart:
             cur.execute("INSERT INTO order_items (order_id, product_id, product_name, product_price, quantity) VALUES (%s, %s, %s, %s, %s)",
@@ -371,21 +404,17 @@ def handler(event: dict, context) -> dict:
         conn.commit()
         conn.close()
 
-        # Отправляем email клиенту если указан
         email_items = [{'name': pname, 'price': pprice, 'qty': qty} for qty, pid, pname, pprice in cart]
-        if email:
-            send_order_email(
-                to_email=email,
-                order_id=order_id,
-                name=name,
-                address=address,
-                phone=phone,
-                comment=comment,
-                items=email_items,
-                total=total
-            )
-
-        # Отправляем уведомление менеджерам
+        send_order_email(
+            to_email=current_user['email'],
+            order_id=order_id,
+            name=name,
+            address=address,
+            phone=phone,
+            comment=comment,
+            items=email_items,
+            total=total
+        )
         send_manager_notification(
             order_id=order_id,
             name=name,
@@ -395,7 +424,23 @@ def handler(event: dict, context) -> dict:
             items=email_items,
             total=total
         )
-
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'ok': True, 'order_id': order_id})}
+
+    # GET ?action=orders
+    if method == 'GET' and action == 'orders':
+        if not current_user:
+            return {'statusCode': 401, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Не авторизован'})}
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT id, status, total, name, phone, address, comment, created_at FROM orders WHERE user_id=%s ORDER BY created_at DESC", (current_user['id'],))
+        orders = []
+        for row in cur.fetchall():
+            oid = row[0]
+            cur2 = conn.cursor()
+            cur2.execute("SELECT product_name, product_price, quantity FROM order_items WHERE order_id=%s", (oid,))
+            items = [{'name': i[0], 'price': i[1], 'quantity': i[2]} for i in cur2.fetchall()]
+            orders.append({'id': oid, 'status': row[1], 'total': row[2], 'name': row[3], 'phone': row[4], 'address': row[5], 'comment': row[6], 'created_at': str(row[7]), 'items': items})
+        conn.close()
+        return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'orders': orders})}
 
     return {'statusCode': 404, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Not found'})}

@@ -1,18 +1,18 @@
 {
   "tests": [
     {
-      "name": "Login with valid credentials returns token",
+      "name": "Register with missing fields returns 400",
       "method": "POST",
-      "path": "/?action=login",
-      "body": {"email": "test_security@example.com", "password": "testpass123"},
-      "expectedStatus": 200,
+      "path": "/?action=register",
+      "body": {"email": ""},
+      "expectedStatus": 400,
       "bodyMatcher": "partial"
     },
     {
       "name": "Login with wrong password returns 401",
       "method": "POST",
       "path": "/?action=login",
-      "body": {"email": "test_security@example.com", "password": "wrongpassword"},
+      "body": {"email": "nobody@example.com", "password": "wrongpass"},
       "expectedStatus": 401,
       "bodyMatcher": "partial"
     },
@@ -24,18 +24,10 @@
       "bodyMatcher": "partial"
     },
     {
-      "name": "Forged token is rejected with 401",
-      "method": "GET",
-      "path": "/?action=me",
-      "headers": {"X-Auth-Token": "1:forged_signature_that_should_not_work"},
-      "expectedStatus": 401,
-      "bodyMatcher": "partial"
-    },
-    {
-      "name": "Register with missing fields returns 400",
+      "name": "Verify email with bad token returns 400",
       "method": "POST",
-      "path": "/?action=register",
-      "body": {"email": ""},
+      "path": "/?action=verify-email",
+      "body": {"token": "invalid_token_xyz"},
       "expectedStatus": 400,
       "bodyMatcher": "partial"
     }

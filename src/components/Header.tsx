@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import Icon from "@/components/ui/icon"
+import { useAuth } from "@/context/AuthContext"
 import { useCart } from "@/context/CartContext"
 
 export default function Header() {
+  const { user } = useAuth()
   const { totalCount } = useCart()
 
   return (
@@ -41,6 +43,20 @@ export default function Header() {
               )}
             </Button>
           </Link>
+
+          {user ? (
+            <Link to="/profile">
+              <Button variant="outline" size="icon" className="rounded-full">
+                <Icon name="User" size={18} />
+              </Button>
+            </Link>
+          ) : (
+            <Link to="/login">
+              <Button variant="outline" className="rounded-full font-mono text-sm">
+                Войти
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     </header>
