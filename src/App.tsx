@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
+import YandexCallbackPage from "./pages/YandexCallbackPage";
 import ProfilePage from "./pages/ProfilePage";
 import CartPage from "./pages/CartPage";
 import AdminPage from "./pages/AdminPage";
@@ -30,6 +31,7 @@ const App = () => (
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
+              <Route path="/oauth/yandex/callback" element={<YandexCallbackPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/cart" element={<CartPage />} />
               <Route path="/admin" element={<AdminPage />} />

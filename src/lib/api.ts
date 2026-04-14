@@ -44,6 +44,8 @@ export const auth = {
     request(AUTH_URL, 'profile', 'PUT', data),
   changePassword: (old_password: string, new_password: string) =>
     request(AUTH_URL, 'password', 'PUT', { old_password, new_password }),
+  yandexOAuth: (code: string) =>
+    request(AUTH_URL, 'yandex-oauth', 'POST', { code }),
 };
 
 export const shop = {

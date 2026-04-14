@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import Icon from '@/components/ui/icon';
+import YandexOAuthButton from '@/components/YandexOAuthButton';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -67,6 +68,12 @@ export default function LoginPage() {
               </Button>
             </div>
           )}
+          <YandexOAuthButton label="Войти через Яндекс" />
+          <div className="flex items-center gap-3 my-4">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-xs text-muted-foreground font-mono">или</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label>Email</Label>

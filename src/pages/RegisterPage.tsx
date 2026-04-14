@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import Icon from '@/components/ui/icon';
+import YandexOAuthButton from '@/components/YandexOAuthButton';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
@@ -82,6 +83,12 @@ export default function RegisterPage() {
           <p className="text-muted-foreground font-mono text-sm mt-1">Создайте аккаунт для оформления заказов</p>
         </div>
         <div className="bg-card border border-border rounded-2xl p-6">
+          <YandexOAuthButton label="Зарегистрироваться через Яндекс" />
+          <div className="flex items-center gap-3 my-4">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-xs text-muted-foreground font-mono">или</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label>Имя</Label>

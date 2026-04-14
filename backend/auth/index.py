@@ -4,6 +4,8 @@ import hmac
 import secrets
 import time
 import smtplib
+import urllib.request
+import urllib.parse
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import bcrypt
@@ -310,5 +312,105 @@ def handler(event: dict, context) -> dict:
         conn.commit()
         conn.close()
         return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'ok': True})}
+
+    # POST ?action=yandex-oauth  — обмен code на токен и вход/регистрация
+    if method == 'POST' and action == 'yandex-oauth':
+        code = body.get('code', '').strip()
+        if not code:
+            return {'statusCode': 400, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'code обязателен'})}
+
+        client_id = os.environ.get('YANDEX_CLIENT_ID', '')
+        client_secret = os.environ.get('YANDEX_CLIENT_SECRET', '')
+        if not client_id or not client_secret:
+            return {'statusCode': 500, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Яндекс OAuth не настроен'})}
+
+        # Обменяем code на access_token
+        token_data = urllib.parse.urlencode({
+            'grant_type': 'authorization_code',
+            'code': code,
+            'client_id': client_id,
+            'client_secret': client_secret,
+        }).encode('utf-8')
+        try:
+            req = urllib.request.Request(
+                'https://oauth.yandex.ru/token',
+                data=token_data,
+                headers={'Content-Type': 'application/x-www-form-urlencoded'}
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                token_resp = json.loads(resp.read().decode('utf-8'))
+        except Exception as e:
+            return {'statusCode': 502, 'headers': CORS_HEADERS, 'body': json.dumps({'error': f'Ошибка получения токена Яндекс: {e}'})}
+
+        ya_access_token = token_resp.get('access_token')
+        if not ya_access_token:
+            return {'statusCode': 502, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Яндекс не вернул access_token'})}
+
+        # Получаем профиль пользователя
+        try:
+            info_req = urllib.request.Request(
+                'https://login.yandex.ru/info?format=json',
+                headers={'Authorization': f'OAuth {ya_access_token}'}
+            )
+            with urllib.request.urlopen(info_req, timeout=10) as resp:
+                ya_user = json.loads(resp.read().decode('utf-8'))
+        except Exception as e:
+            return {'statusCode': 502, 'headers': CORS_HEADERS, 'body': json.dumps({'error': f'Ошибка получения профиля Яндекс: {e}'})}
+
+        ya_id = str(ya_user.get('id', ''))
+        ya_email = (ya_user.get('default_email') or ya_user.get('emails', [''])[0] or '').lower()
+        ya_name = ya_user.get('real_name') or ya_user.get('display_name') or ya_email
+
+        if not ya_id or not ya_email:
+            return {'statusCode': 502, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Не удалось получить данные из Яндекса'})}
+
+        conn = get_db()
+        cur = conn.cursor()
+
+        # Ищем по oauth_id
+        cur.execute("SELECT id, email, name, role FROM users WHERE oauth_provider='yandex' AND oauth_id=%s", (ya_id,))
+        row = cur.fetchone()
+
+        if row:
+            # Уже зарегистрирован через Яндекс — просто входим
+            token_val = generate_token(row[0], conn)
+            conn.commit()
+            conn.close()
+            return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({
+                'token': token_val,
+                'user': {'id': row[0], 'email': row[1], 'name': row[2], 'role': row[3], 'email_verified': True}
+            })}
+
+        # Проверяем, нет ли уже аккаунта с таким email (обычная регистрация)
+        cur.execute("SELECT id, email, name, role FROM users WHERE email=%s", (ya_email,))
+        existing = cur.fetchone()
+
+        if existing:
+            # Привязываем Яндекс к существующему аккаунту
+            cur.execute(
+                "UPDATE users SET oauth_provider='yandex', oauth_id=%s, email_verified=TRUE WHERE id=%s",
+                (ya_id, existing[0])
+            )
+            token_val = generate_token(existing[0], conn)
+            conn.commit()
+            conn.close()
+            return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({
+                'token': token_val,
+                'user': {'id': existing[0], 'email': existing[1], 'name': existing[2], 'role': existing[3], 'email_verified': True}
+            })}
+
+        # Новый пользователь — регистрируем
+        cur.execute(
+            "INSERT INTO users (email, password_hash, name, email_verified, oauth_provider, oauth_id) VALUES (%s, %s, %s, TRUE, 'yandex', %s) RETURNING id",
+            (ya_email, '', ya_name, ya_id)
+        )
+        new_id = cur.fetchone()[0]
+        token_val = generate_token(new_id, conn)
+        conn.commit()
+        conn.close()
+        return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({
+            'token': token_val,
+            'user': {'id': new_id, 'email': ya_email, 'name': ya_name, 'role': 'user', 'email_verified': True}
+        })}
 
     return {'statusCode': 404, 'headers': CORS_HEADERS, 'body': json.dumps({'error': 'Not found'})}
