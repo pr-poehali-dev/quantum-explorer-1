@@ -1,0 +1,1 @@
+UPDATE t_p56991462_quantum_explorer_1.products SET price = 10 WHERE id = 4;
