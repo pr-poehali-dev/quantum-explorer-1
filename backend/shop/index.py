@@ -424,7 +424,16 @@ def handler(event: dict, context) -> dict:
             items=email_items,
             total=total
         )
-        return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({'ok': True, 'order_id': order_id})}
+        cart_items_for_payment = [{'id': str(pid), 'name': pname, 'price': pprice, 'quantity': qty} for qty, pid, pname, pprice in cart]
+        return {'statusCode': 200, 'headers': CORS_HEADERS, 'body': json.dumps({
+            'ok': True,
+            'order_id': order_id,
+            'total': total,
+            'user_email': current_user['email'],
+            'user_name': name,
+            'user_phone': phone,
+            'cart_items': cart_items_for_payment,
+        })}
 
     # GET ?action=orders
     if method == 'GET' and action == 'orders':

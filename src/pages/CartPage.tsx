@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
-import { shop } from '@/lib/api';
+import { shop, yookassa } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,13 +27,22 @@ export default function CartPage() {
     if (!user) { navigate('/login'); return; }
     setPlacing(true);
     try {
-      const data = await shop.createOrder({ name, phone, address, comment });
+      const orderData = await shop.createOrder({ name, phone, address, comment });
       await refreshCart();
-      toast.success(`Заказ #${data.order_id} оформлен!`);
-      navigate('/profile');
+
+      const returnUrl = `${window.location.origin}/order-success?order_id=${orderData.order_id}`;
+      const payment = await yookassa.createPayment({
+        amount: orderData.total,
+        user_email: orderData.user_email,
+        user_name: orderData.user_name,
+        user_phone: orderData.user_phone,
+        return_url: returnUrl,
+        cart_items: orderData.cart_items,
+      });
+
+      window.location.href = payment.payment_url;
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Ошибка оформления');
-    } finally {
       setPlacing(false);
     }
   };
@@ -137,7 +146,7 @@ export default function CartPage() {
                 <Textarea value={comment} onChange={e => setComment(e.target.value)} className="mt-1" placeholder="Пожелания, удобное время доставки..." rows={3} />
               </div>
               <Button type="submit" className="w-full" size="lg" disabled={placing}>
-                {placing ? 'Оформляем...' : 'Подтвердить заказ'}
+                {placing ? 'Создаём платёж...' : 'Подтвердить и оплатить'}
               </Button>
             </form>
           </>

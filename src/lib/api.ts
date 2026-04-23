@@ -1,6 +1,7 @@
 const AUTH_URL = 'https://functions.poehali.dev/1349fb1d-e908-4bea-a29d-05db1322232d';
 const SHOP_URL = 'https://functions.poehali.dev/59b0af84-8647-4b94-bafa-296c1e76d239';
 const ADMIN_URL = 'https://functions.poehali.dev/ff10ae38-5a9d-4667-b65b-b5f20b9633c1';
+const YOOKASSA_URL = 'https://functions.poehali.dev/292c69ef-7005-408b-b8eb-fc9bf7328df0';
 
 function getToken() {
   return localStorage.getItem('auth_token') || '';
@@ -60,6 +61,25 @@ export const shop = {
   createOrder: (data: { name: string; phone: string; address: string; comment?: string }) =>
     request(SHOP_URL, 'orders', 'POST', data, true),
   getOrders: () => request(SHOP_URL, 'orders', 'GET', undefined, true),
+};
+
+export const yookassa = {
+  createPayment: (data: {
+    amount: number;
+    user_email: string;
+    user_name: string;
+    user_phone?: string;
+    return_url: string;
+    cart_items: Array<{ id: string; name: string; price: number; quantity: number }>;
+  }) => fetch(YOOKASSA_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }).then(async res => {
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Ошибка создания платежа');
+    return json;
+  }),
 };
 
 export const admin = {
