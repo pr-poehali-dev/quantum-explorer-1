@@ -65,6 +65,7 @@ export const shop = {
 
 export const yookassa = {
   createPayment: (data: {
+    order_id: number;
     amount: number;
     user_email: string;
     user_name: string;

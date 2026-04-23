@@ -213,6 +213,14 @@ def handler(event, context):
             'body': json.dumps({'error': 'YooKassa credentials not configured'})
         }
 
+    order_id = data.get('order_id')
+    if not order_id:
+        return {
+            'statusCode': 400,
+            'headers': HEADERS,
+            'body': json.dumps({'error': 'order_id is required'})
+        }
+
     S = get_schema()
     conn = get_connection()
 
@@ -220,45 +228,16 @@ def handler(event, context):
         cur = conn.cursor()
         now = datetime.utcnow().isoformat()
 
-        # Generate order number
-        order_number = f"YK-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
-
-        # Create order in DB
-        cur.execute(f"""
-            INSERT INTO {S}orders
-            (order_number, user_name, user_email, user_phone, amount, status, created_at, updated_at)
-            VALUES (%s, %s, %s, %s, %s, 'pending', %s, %s)
-            RETURNING id
-        """, (order_number, user_name, user_email, user_phone, amount, now, now))
-
-        order_id = cur.fetchone()[0]
-
-        # Insert cart items
-        for item in cart_items:
-            cur.execute(f"""
-                INSERT INTO {S}order_items
-                (order_id, product_id, product_name, product_price, quantity, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (
-                order_id,
-                str(item.get('id', '')),
-                item.get('name', ''),
-                item.get('price', 0),
-                item.get('quantity', 1),
-                now
-            ))
+        order_number = f"ORD-{order_id}"
 
         # Create YooKassa payment
-        metadata = {
-            "order_id": str(order_id),
-            "order_number": order_number
-        }
+        metadata = {"order_id": str(order_id), "order_number": order_number}
 
         payment_response = create_yookassa_payment(
             shop_id=shop_id,
             secret_key=secret_key,
             amount=amount,
-            description=f"{description} ({order_number})",
+            description=f"{description} (#{order_id})",
             return_url=return_url,
             customer_email=user_email,
             cart_items=cart_items,
@@ -268,7 +247,7 @@ def handler(event, context):
         payment_id = payment_response.get('id')
         confirmation_url = payment_response.get('confirmation', {}).get('confirmation_url', '')
 
-        # Update order with payment info
+        # Update existing order with payment info
         cur.execute(f"""
             UPDATE {S}orders
             SET yookassa_payment_id = %s, payment_url = %s, updated_at = %s
@@ -284,7 +263,6 @@ def handler(event, context):
                 'payment_url': confirmation_url,
                 'payment_id': payment_id,
                 'order_id': order_id,
-                'order_number': order_number
             })
         }
 

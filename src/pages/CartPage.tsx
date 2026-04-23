@@ -32,6 +32,7 @@ export default function CartPage() {
 
       const returnUrl = `${window.location.origin}/order-success?order_id=${orderData.order_id}`;
       const payment = await yookassa.createPayment({
+        order_id: orderData.order_id,
         amount: orderData.total,
         user_email: orderData.user_email,
         user_name: orderData.user_name,
