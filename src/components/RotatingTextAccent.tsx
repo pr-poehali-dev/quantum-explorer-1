@@ -5,7 +5,7 @@ export default function RotatingTextAccent() {
     <div className="absolute bottom-20 right-8 w-24 h-24 md:w-32 md:h-32">
       <div className="relative w-full h-full">
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-3xl md:text-4xl">🍩</span>
+          <span className="text-3xl md:text-4xl">🧁</span>
         </div>
 
         <div className="absolute inset-0 animate-spin-slow">
